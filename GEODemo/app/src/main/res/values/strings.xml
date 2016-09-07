@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DJIGEODemo</string>
+
+    <string name="title_activity_GEODemo">GEODemo</string>
+
+    <string name="action_settings">Settings</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="product_information">Product Information</string>
+    <string name="connection_loose">Status: No Product Connected</string>
+    <string name="sdk_version">DJI SDK Version: 3.3</string>
+
+    <!-- GEO with map testing activity-->
+    <string name="title_activity_geo_with_map_testing">GeoWithMapTestingActivity</string>
+    <string name="demo_desc_geo_with_map">Geo System With Map</string>
+
+    <string name="item_top_left_title">Category</string>
+    <string name="item_top_title">EventName</string>
+    <string name="Message_WaitStatus">Upload Status</string>
+
+    <string name="title_activity_geo_testing">GeoTestingActivity</string>
+    <string name="demo_desc_geo">Geo System</string>
+    <string name="geo_get_surrounding_nfz">Get Surrounding NFZ</string>
+    <string name="geo_get_location_nfz">Get location NFZ</string>
+    <string name="geo_get_unlock_nfz">Get Unlock NFZ</string>
+    <string name="geo_refresh_nfz">Refresh Local Data</string>
+    <string name="geo_unlock_nfzs">Unlock NFZs</string>
+    <string name="geo_get_unlock_nfzs">Get Unlock NFZs</string>
+    <string name="geo_login">Login</string>
+    <string name="geo_logout">Logout</string>
+    <string name="enabled_geo">Enabled GEO</string>
+    <string name="start_simulator">Start Simulator</string>
+    <string name="stop_simulator">Stop Simulator</string>
+    <string name="geo_set_geo_enabled">Set GEO Enabled</string>
+    <string name="geo_get_geo_enabled">Get GEO Enabled</string>
+    <string name="geo_update_location">Update Location</string>>
+
+</resources>
