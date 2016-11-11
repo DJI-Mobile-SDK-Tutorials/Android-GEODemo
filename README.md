@@ -8,7 +8,7 @@ In this tutorial, you will learn how to use the "DJIFlyZoneManager" and "DJIFlyZ
 
  - Android Studio 1.5+
  - Android System 4.1+
- - DJI Android SDK 3.4
+ - DJI Android SDK 3.4.1
 
 ## Tutorial
 
