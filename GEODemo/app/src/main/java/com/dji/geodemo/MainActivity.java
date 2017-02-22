@@ -7,6 +7,7 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -32,17 +33,16 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import java.util.ArrayList;
 
 import dji.common.error.DJIError;
-import dji.common.flightcontroller.DJIFlightControllerCurrentState;
-import dji.common.flightcontroller.DJIFlyZoneInformation;
-import dji.common.flightcontroller.FlyForbidStatus;
+import dji.common.flightcontroller.FlightControllerState;
+import dji.common.flightcontroller.FlyZoneState;
+import dji.common.flightcontroller.GEOFlyZoneInformation;
 import dji.common.flightcontroller.UserAccountStatus;
-import dji.common.util.DJICommonCallbacks;
+import dji.common.util.CommonCallbacks;
 import dji.midware.data.model.P3.DataOsdGetPushCommon;
-import dji.sdk.base.DJIBaseProduct;
-import dji.sdk.flightcontroller.DJIFlightController;
-import dji.sdk.flightcontroller.DJIFlightControllerDelegate;
-import dji.sdk.flightcontroller.DJIFlyZoneManager;
-import dji.sdk.products.DJIAircraft;
+import dji.sdk.base.BaseProduct;
+import dji.sdk.flightcontroller.FlightController;
+import dji.sdk.flightcontroller.FlyZoneManager;
+import dji.sdk.products.Aircraft;
 import dji.sdk.sdkmanager.DJISDKManager;
 
 public class MainActivity extends FragmentActivity implements View.OnClickListener, OnMapReadyCallback {
@@ -65,7 +65,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private TextView flyZonesTv;
 
     private Marker marker;
-    private DJIFlightController mFlightController = null;
+    private FlightController mFlightController = null;
 
     private MarkerOptions markerOptions = new MarkerOptions();
     private LatLng latLng;
@@ -102,12 +102,13 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        DJIFlyZoneManager.getInstance().setFlyForbidStatusUpdatedCallback(new DJIFlyZoneManager.FlyForbidStatusUpdatedCallback() {
+        FlyZoneManager.getInstance().setFlyZoneStateCallback(new FlyZoneState.Callback() {
             @Override
-            public void onFlyForbidStatusUpdated(FlyForbidStatus status) {
-                showToast(status.name());
+            public void onUpdate(@NonNull FlyZoneState flyZoneState) {
+                showToast(flyZoneState.name());
             }
         });
+
     }
 
     @Override
@@ -150,7 +151,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private void updateTitleBar() {
         if (mConnectStatusTextView == null) return;
         boolean ret = false;
-        DJIBaseProduct product = GEODemoApplication.getProductInstance();
+        BaseProduct product = GEODemoApplication.getProductInstance();
         if (product != null) {
             if (product.isConnected()) {
                 //The product is connected
@@ -161,8 +162,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 });
                 ret = true;
             } else {
-                if (product instanceof DJIAircraft) {
-                    DJIAircraft aircraft = (DJIAircraft) product;
+                if (product instanceof Aircraft) {
+                    Aircraft aircraft = (Aircraft) product;
                     if (aircraft.getRemoteController() != null && aircraft.getRemoteController().isConnected()) {
                         // The product is not connected, but the remote controller is connected
                         MainActivity.this.runOnUiThread(new Runnable() {
@@ -216,7 +217,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
         MainActivity.this.runOnUiThread(new Runnable() {
             public void run() {
-                loginStatusTv.setText(DJIFlyZoneManager.getInstance().getCurrentUserAccountStatus().name());
+                loginStatusTv.setText(FlyZoneManager.getInstance().getCurrentUserAccountStatus().name());
             }
         });
 
@@ -234,7 +235,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.geo_login_btn:
-                DJIFlyZoneManager.getInstance().LogIntoDJIUserAccount(this, new DJICommonCallbacks.DJICompletionCallbackWith<UserAccountStatus>() {
+                FlyZoneManager.getInstance().logIntoDJIUserAccount(this, new CommonCallbacks.CompletionCallbackWith<UserAccountStatus>() {
                     @Override
                     public void onSuccess(final UserAccountStatus userAccountStatus) {
                         showToast(userAccountStatus.name());
@@ -256,7 +257,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
             case R.id.geo_logout_btn:
 
-                DJIFlyZoneManager.getInstance().logoutOfDJIUserAccount(new DJICommonCallbacks.DJICompletionCallback() {
+                FlyZoneManager.getInstance().logoutOfDJIUserAccount(new CommonCallbacks.CompletionCallback() {
                     @Override
                     public void onResult(DJIError error) {
                         if (null == error) {
@@ -306,7 +307,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                                         } else {
                                             String value2 = input.getText().toString();
                                             unlockFlyZoneIds.add(Integer.parseInt(value2));
-                                            DJIFlyZoneManager.getInstance().unlockNFZs(unlockFlyZoneIds, new DJICommonCallbacks.DJICompletionCallback() {
+                                            FlyZoneManager.getInstance().unlockFlyZones(unlockFlyZoneIds, new CommonCallbacks.CompletionCallback() {
                                                 @Override
                                                 public void onResult(DJIError error) {
 
@@ -332,9 +333,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
             case R.id.geo_get_unlock_nfzs_btn:
 
-                DJIFlyZoneManager.getInstance().getUnlockedNFZs(new DJICommonCallbacks.DJICompletionCallbackWith<ArrayList<DJIFlyZoneInformation>>() {
+                FlyZoneManager.getInstance().getUnlockedFlyZones(new CommonCallbacks.CompletionCallbackWith<ArrayList<GEOFlyZoneInformation>>(){
                     @Override
-                    public void onSuccess(ArrayList<DJIFlyZoneInformation> djiFlyZoneInformations) {
+                    public void onSuccess(ArrayList<GEOFlyZoneInformation> djiFlyZoneInformations) {
                         showToast("Get Unlock NFZ success");
                         showSurroundFlyZonesInTv(djiFlyZoneInformations);
                     }
@@ -370,7 +371,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                                 // of the selected item
                                 switch (which) {
                                     case 0:
-                                        DJIFlyZoneManager.getInstance().setGEOSystemEnabled(true, new DJICommonCallbacks.DJICompletionCallback() {
+                                        FlyZoneManager.getInstance().setGEOSystemEnabled(true, new CommonCallbacks.CompletionCallback() {
                                             @Override
                                             public void onResult(DJIError djiError) {
                                                 if (null == djiError) {
@@ -382,7 +383,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                                         });
                                         break;
                                     case 1:
-                                        DJIFlyZoneManager.getInstance().setGEOSystemEnabled(false, new DJICommonCallbacks.DJICompletionCallback() {
+                                        FlyZoneManager.getInstance().setGEOSystemEnabled(false, new CommonCallbacks.CompletionCallback() {
                                             @Override
                                             public void onResult(DJIError djiError) {
                                                 if (null == djiError) {
@@ -404,8 +405,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 break;
 
             case R.id.geo_get_geo_enabled_btn:
-
-                DJIFlyZoneManager.getInstance().getGEOSystemEnabled(new DJICommonCallbacks.DJICompletionCallbackWith<Boolean>() {
+                FlyZoneManager.getInstance().getGEOSystemEnabled(new CommonCallbacks.CompletionCallbackWith<Boolean>() {
 
                     @Override
                     public void onSuccess(Boolean aBoolean) {
@@ -421,19 +421,17 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         }
     }
 
-
     private void initFlightController() {
 
         if (isFlightControllerSupported()) {
-            mFlightController = ((DJIAircraft) DJISDKManager.getInstance().getDJIProduct()).getFlightController();
-
-            mFlightController.setUpdateSystemStateCallback(new DJIFlightControllerDelegate.FlightControllerUpdateSystemStateCallback() {
+            mFlightController = ((Aircraft) DJISDKManager.getInstance().getProduct()).getFlightController();
+            mFlightController.setStateCallback(new FlightControllerState.Callback() {
                 @Override
-                public void onResult(final DJIFlightControllerCurrentState state) {
-
+                public void onUpdate(FlightControllerState
+                                             djiFlightControllerCurrentState) {
                     if (mMap != null) {
-                        droneLocationLat = state.getAircraftLocation().getLatitude();
-                        droneLocationLng = state.getAircraftLocation().getLongitude();
+                        droneLocationLat = djiFlightControllerCurrentState.getAircraftLocation().getLatitude();
+                        droneLocationLng = djiFlightControllerCurrentState.getAircraftLocation().getLongitude();
                         updateDroneLocation();
                     }
                 }
@@ -467,9 +465,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     }
 
     private boolean isFlightControllerSupported() {
-        return DJISDKManager.getInstance().getDJIProduct() != null &&
-                DJISDKManager.getInstance().getDJIProduct() instanceof DJIAircraft &&
-                ((DJIAircraft) DJISDKManager.getInstance().getDJIProduct()).getFlightController() != null;
+        return DJISDKManager.getInstance().getProduct() != null &&
+                DJISDKManager.getInstance().getProduct() instanceof Aircraft &&
+                ((Aircraft) DJISDKManager.getInstance().getProduct()).getFlightController() != null;
     }
 
     /**
@@ -498,9 +496,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
     private void printSurroundFlyZones() {
 
-        DJIFlyZoneManager.getInstance().getFlyZonesInSurroundingAre(new DJICommonCallbacks.DJICompletionCallbackWith<ArrayList<DJIFlyZoneInformation>>() {
+        FlyZoneManager.getInstance().getFlyZonesInSurroundingArea(new CommonCallbacks.CompletionCallbackWith<ArrayList<GEOFlyZoneInformation>>() {
             @Override
-            public void onSuccess(ArrayList<DJIFlyZoneInformation> flyZones) {
+            public void onSuccess(ArrayList<GEOFlyZoneInformation> flyZones) {
                 showToast("get surrounding Fly Zone Success!");
                 updateFlyZonesOnTheMap(flyZones);
                 showSurroundFlyZonesInTv(flyZones);
@@ -513,19 +511,19 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         });
     }
 
-    private void showSurroundFlyZonesInTv(final ArrayList<DJIFlyZoneInformation> flyZones) {
+    private void showSurroundFlyZonesInTv(final ArrayList<GEOFlyZoneInformation> flyZones) {
         MainActivity.this.runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 StringBuffer sb = new StringBuffer();
-                for (DJIFlyZoneInformation flyZone : flyZones) {
+                for (GEOFlyZoneInformation flyZone : flyZones) {
                     if (flyZone != null && flyZone.getCategory() != null){
 
-                        sb.append("FlyZoneId: ").append(flyZone.getFlyZoneId()).append("\n");
+                        sb.append("FlyZoneId: ").append(flyZone.getFlyZoneID()).append("\n");
                         sb.append("Category: ").append(flyZone.getCategory().name()).append("\n");
-                        sb.append("Latitude: ").append(flyZone.getLatitude()).append("\n");
-                        sb.append("Longitude: ").append(flyZone.getLongitude()).append("\n");
-                        sb.append("FlyZoneType: ").append(flyZone.getFlyZoneType().name()).append("\n");
+                        sb.append("Latitude: ").append(flyZone.getCoordinate().getLatitude()).append("\n");
+                        sb.append("Longitude: ").append(flyZone.getCoordinate().getLongitude()).append("\n");
+                        sb.append("FlyZoneType: ").append(flyZone.getType().name()).append("\n");
                         sb.append("Radius: ").append(flyZone.getRadius()).append("\n");
                         sb.append("Shape: ").append(flyZone.getShape().name()).append("\n");
                         sb.append("StartTime: ").append(flyZone.getStartTime()).append("\n");
@@ -541,7 +539,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         });
     }
 
-    private void updateFlyZonesOnTheMap(final ArrayList<DJIFlyZoneInformation> flyZones) {
+    private void updateFlyZonesOnTheMap(final ArrayList<GEOFlyZoneInformation> flyZones) {
         if (mMap == null) {
             return;
         }
@@ -549,21 +547,21 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             @Override
             public void run() {
                 mMap.clear();
-                for (DJIFlyZoneInformation flyZone : flyZones) {
+                for (GEOFlyZoneInformation flyZone : flyZones) {
                     CircleOptions circle = new CircleOptions();
                     circle.radius(flyZone.getRadius());
-                    circle.center(new LatLng(flyZone.getLatitude(), flyZone.getLongitude()));
+                    circle.center(new LatLng(flyZone.getCoordinate().getLatitude(), flyZone.getCoordinate().getLongitude()));
                     switch (flyZone.getCategory()) {
-                        case Warning:
+                        case WARNING:
                             circle.strokeColor(Color.GREEN);
                             break;
-                        case EnhancedWarning:
+                        case ENHANCED_WARNING:
                             circle.strokeColor(Color.BLUE);
                             break;
-                        case Authorization:
+                        case AUTHORIZATION:
                             circle.strokeColor(Color.YELLOW);
                             break;
-                        case Restricted:
+                        case RESTRICTED:
                             circle.strokeColor(Color.RED);
                             break;
 
