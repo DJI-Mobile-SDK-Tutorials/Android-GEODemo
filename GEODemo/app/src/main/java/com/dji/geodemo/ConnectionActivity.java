@@ -13,8 +13,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import dji.sdk.base.DJIBaseProduct;
-import dji.sdk.products.DJIAircraft;
+import dji.sdk.base.BaseProduct;
+import dji.sdk.products.Aircraft;
 
 public class ConnectionActivity extends Activity implements View.OnClickListener {
 
@@ -105,13 +105,13 @@ public class ConnectionActivity extends Activity implements View.OnClickListener
     };
 
     private void refreshSDKRelativeUI() {
-        DJIBaseProduct mProduct = GEODemoApplication.getProductInstance();
+        BaseProduct mProduct = GEODemoApplication.getProductInstance();
 
         if (null != mProduct && mProduct.isConnected()) {
             Log.v(TAG, "refreshSDK: True");
             mBtnOpen.setEnabled(true);
 
-            String str = mProduct instanceof DJIAircraft ? "DJIAircraft" : "DJIHandHeld";
+            String str = mProduct instanceof Aircraft ? "Aircraft" : "HandHeld";
             mTextConnectionStatus.setText("Status: " + str + " connected");
 
             if (null != mProduct.getModel()) {

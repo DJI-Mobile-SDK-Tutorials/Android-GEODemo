@@ -28,21 +28,27 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polygon;
+import com.google.android.gms.maps.model.PolygonOptions;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import dji.common.error.DJIError;
-import dji.common.flightcontroller.DJIFlightControllerCurrentState;
-import dji.common.flightcontroller.DJIFlyZoneInformation;
-import dji.common.flightcontroller.FlyForbidStatus;
-import dji.common.flightcontroller.UserAccountStatus;
-import dji.common.util.DJICommonCallbacks;
+import dji.common.flightcontroller.FlightControllerState;
+import dji.common.flightcontroller.UserAccountState;
+import dji.common.flightcontroller.flyzone.FlyZoneInformation;
+import dji.common.flightcontroller.flyzone.FlyZoneState;
+import dji.common.flightcontroller.flyzone.SubFlyZoneInformation;
+import dji.common.flightcontroller.flyzone.SubFlyZoneShape;
+import dji.common.model.LocationCoordinate2D;
+import dji.common.util.CommonCallbacks;
+import dji.log.DJILog;
+import dji.midware.data.forbid.FlyForbidProtocol;
 import dji.midware.data.model.P3.DataOsdGetPushCommon;
-import dji.sdk.base.DJIBaseProduct;
-import dji.sdk.flightcontroller.DJIFlightController;
-import dji.sdk.flightcontroller.DJIFlightControllerDelegate;
-import dji.sdk.flightcontroller.DJIFlyZoneManager;
-import dji.sdk.products.DJIAircraft;
+import dji.sdk.base.BaseProduct;
+import dji.sdk.flightcontroller.FlightController;
+import dji.sdk.products.Aircraft;
 import dji.sdk.sdkmanager.DJISDKManager;
 
 public class MainActivity extends FragmentActivity implements View.OnClickListener, OnMapReadyCallback {
@@ -50,6 +56,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private static final String TAG = MainActivity.class.getName();
 
     private GoogleMap mMap;
+    private ArrayList<Integer> unlockableIds = new ArrayList<Integer>();
 
     protected TextView mConnectStatusTextView;
     private Button btnLogin;
@@ -65,13 +72,15 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private TextView flyZonesTv;
 
     private Marker marker;
-    private DJIFlightController mFlightController = null;
+    private FlightController mFlightController = null;
 
     private MarkerOptions markerOptions = new MarkerOptions();
     private LatLng latLng;
     private double droneLocationLat = 181, droneLocationLng = 181;
     private ArrayList<Integer> unlockFlyZoneIds = new ArrayList<Integer>();
-
+    private final int limitFillColor = Color.HSVToColor(120, new float[] {0, 1, 1});
+    private final int limitCanUnlimitFillColor = Color.argb(40, 0xFF, 0xFF, 0x00);
+    private FlyfrbBasePainter painter = new FlyfrbBasePainter();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,12 +111,14 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        DJIFlyZoneManager.getInstance().setFlyForbidStatusUpdatedCallback(new DJIFlyZoneManager.FlyForbidStatusUpdatedCallback() {
-            @Override
-            public void onFlyForbidStatusUpdated(FlyForbidStatus status) {
-                showToast(status.name());
-            }
-        });
+        DJISDKManager.getInstance().getFlyZoneManager()
+                .setFlyZoneStateCallback(new FlyZoneState.Callback() {
+                    @Override
+                    public void onUpdate(FlyZoneState status) {
+                        showToast(status.name());
+                    }
+                });
+
     }
 
     @Override
@@ -150,7 +161,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private void updateTitleBar() {
         if (mConnectStatusTextView == null) return;
         boolean ret = false;
-        DJIBaseProduct product = GEODemoApplication.getProductInstance();
+        BaseProduct product = GEODemoApplication.getProductInstance();
         if (product != null) {
             if (product.isConnected()) {
                 //The product is connected
@@ -161,8 +172,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 });
                 ret = true;
             } else {
-                if (product instanceof DJIAircraft) {
-                    DJIAircraft aircraft = (DJIAircraft) product;
+                if (product instanceof Aircraft) {
+                    Aircraft aircraft = (Aircraft) product;
                     if (aircraft.getRemoteController() != null && aircraft.getRemoteController().isConnected()) {
                         // The product is not connected, but the remote controller is connected
                         MainActivity.this.runOnUiThread(new Runnable() {
@@ -216,7 +227,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
         MainActivity.this.runOnUiThread(new Runnable() {
             public void run() {
-                loginStatusTv.setText(DJIFlyZoneManager.getInstance().getCurrentUserAccountStatus().name());
+
+                loginStatusTv.setText(DJISDKManager.getInstance().getFlyZoneManager().getUserAccountState().name());
             }
         });
 
@@ -234,41 +246,40 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.geo_login_btn:
-                DJIFlyZoneManager.getInstance().LogIntoDJIUserAccount(this, new DJICommonCallbacks.DJICompletionCallbackWith<UserAccountStatus>() {
-                    @Override
-                    public void onSuccess(final UserAccountStatus userAccountStatus) {
-                        showToast(userAccountStatus.name());
-                        MainActivity.this.runOnUiThread(new Runnable() {
+                DJISDKManager.getInstance().getFlyZoneManager().logIntoDJIUserAccount(this,
+                        new CommonCallbacks.CompletionCallbackWith<UserAccountState>() {
                             @Override
-                            public void run() {
-                                loginStatusTv.setText(userAccountStatus.name());
+                            public void onSuccess(final UserAccountState userAccountState) {
+                                showToast(userAccountState.name());
+                                MainActivity.this.runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        loginStatusTv.setText(userAccountState.name());
+                                    }
+                                });
+                            }
+
+                            @Override
+                            public void onFailure(DJIError error) {
+                                showToast(error.getDescription());
                             }
                         });
 
-                    }
-
-                    @Override
-                    public void onFailure(DJIError error) {
-                        showToast(error.getDescription());
-                    }
-                });
                 break;
 
             case R.id.geo_logout_btn:
 
-                DJIFlyZoneManager.getInstance().logoutOfDJIUserAccount(new DJICommonCallbacks.DJICompletionCallback() {
+                DJISDKManager.getInstance().getFlyZoneManager().logoutOfDJIUserAccount(new CommonCallbacks.CompletionCallback() {
                     @Override
                     public void onResult(DJIError error) {
                         if (null == error) {
                             showToast("logoutOfDJIUserAccount Success");
-
                             MainActivity.this.runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
                                     loginStatusTv.setText("NotLoggedin");
                                 }
                             });
-
                         } else {
                             showToast(error.getDescription());
                         }
@@ -306,7 +317,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                                         } else {
                                             String value2 = input.getText().toString();
                                             unlockFlyZoneIds.add(Integer.parseInt(value2));
-                                            DJIFlyZoneManager.getInstance().unlockNFZs(unlockFlyZoneIds, new DJICommonCallbacks.DJICompletionCallback() {
+                                            DJISDKManager.getInstance().getFlyZoneManager().unlockFlyZones(unlockFlyZoneIds, new CommonCallbacks.CompletionCallback() {
                                                 @Override
                                                 public void onResult(DJIError error) {
 
@@ -332,11 +343,11 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
             case R.id.geo_get_unlock_nfzs_btn:
 
-                DJIFlyZoneManager.getInstance().getUnlockedNFZs(new DJICommonCallbacks.DJICompletionCallbackWith<ArrayList<DJIFlyZoneInformation>>() {
+                DJISDKManager.getInstance().getFlyZoneManager().getUnlockedFlyZones(new CommonCallbacks.CompletionCallbackWith<ArrayList<FlyZoneInformation>>(){
                     @Override
-                    public void onSuccess(ArrayList<DJIFlyZoneInformation> djiFlyZoneInformations) {
+                    public void onSuccess(final ArrayList<FlyZoneInformation> flyZoneInformations) {
                         showToast("Get Unlock NFZ success");
-                        showSurroundFlyZonesInTv(djiFlyZoneInformations);
+                        showSurroundFlyZonesInTv(flyZoneInformations);
                     }
 
                     @Override
@@ -354,6 +365,14 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             case R.id.geo_update_location_btn:
                 latLng = new LatLng(DataOsdGetPushCommon.getInstance().getLatitude(),
                         DataOsdGetPushCommon.getInstance().getLongitude());
+                if (latLng != null) {
+
+                    //Create MarkerOptions object
+                    final MarkerOptions markerOptions = new MarkerOptions();
+                    markerOptions.position(latLng);
+                    markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.aircraft));
+                    marker = mMap.addMarker(markerOptions);
+                }
                 mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
                 mMap.animateCamera(CameraUpdateFactory.zoomTo(15.0f));
                 break;
@@ -370,7 +389,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                                 // of the selected item
                                 switch (which) {
                                     case 0:
-                                        DJIFlyZoneManager.getInstance().setGEOSystemEnabled(true, new DJICommonCallbacks.DJICompletionCallback() {
+                                        DJISDKManager.getInstance().getFlyZoneManager().setGEOSystemEnabled(true, new CommonCallbacks.CompletionCallback() {
                                             @Override
                                             public void onResult(DJIError djiError) {
                                                 if (null == djiError) {
@@ -382,16 +401,19 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                                         });
                                         break;
                                     case 1:
-                                        DJIFlyZoneManager.getInstance().setGEOSystemEnabled(false, new DJICommonCallbacks.DJICompletionCallback() {
-                                            @Override
-                                            public void onResult(DJIError djiError) {
-                                                if (null == djiError) {
-                                                    showToast("set GEO Disable Success");
-                                                } else {
-                                                    showToast(djiError.getDescription());
-                                                }
-                                            }
-                                        });
+
+                                        DJISDKManager.getInstance().getFlyZoneManager().setGEOSystemEnabled(false,
+                                                new CommonCallbacks.CompletionCallback() {
+                                                    @Override
+                                                    public void onResult(DJIError error) {
+                                                        if (null == error) {
+                                                            showToast("set GEO Disable Success");
+                                                        } else {
+                                                            showToast(error.getDescription());
+                                                        }
+                                                    }
+                                                });
+
                                         break;
                                     case 2:
                                         dialog.dismiss();
@@ -404,8 +426,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 break;
 
             case R.id.geo_get_geo_enabled_btn:
-
-                DJIFlyZoneManager.getInstance().getGEOSystemEnabled(new DJICommonCallbacks.DJICompletionCallbackWith<Boolean>() {
+                DJISDKManager.getInstance().getFlyZoneManager().getGEOSystemEnabled(new CommonCallbacks.CompletionCallbackWith<Boolean>() {
 
                     @Override
                     public void onSuccess(Boolean aBoolean) {
@@ -421,19 +442,17 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         }
     }
 
-
     private void initFlightController() {
 
         if (isFlightControllerSupported()) {
-            mFlightController = ((DJIAircraft) DJISDKManager.getInstance().getDJIProduct()).getFlightController();
-
-            mFlightController.setUpdateSystemStateCallback(new DJIFlightControllerDelegate.FlightControllerUpdateSystemStateCallback() {
+            mFlightController = ((Aircraft) DJISDKManager.getInstance().getProduct()).getFlightController();
+            mFlightController.setStateCallback(new FlightControllerState.Callback() {
                 @Override
-                public void onResult(final DJIFlightControllerCurrentState state) {
-
+                public void onUpdate(FlightControllerState
+                                             djiFlightControllerCurrentState) {
                     if (mMap != null) {
-                        droneLocationLat = state.getAircraftLocation().getLatitude();
-                        droneLocationLng = state.getAircraftLocation().getLongitude();
+                        droneLocationLat = djiFlightControllerCurrentState.getAircraftLocation().getLatitude();
+                        droneLocationLng = djiFlightControllerCurrentState.getAircraftLocation().getLongitude();
                         updateDroneLocation();
                     }
                 }
@@ -457,19 +476,25 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     LatLng pos = new LatLng(droneLocationLat, droneLocationLng);
 
                     //Create MarkerOptions object
-                    final MarkerOptions markerOptions = new MarkerOptions();
-                    markerOptions.position(pos);
-                    markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.aircraft));
-                    marker = mMap.addMarker(markerOptions);
+                    if (pos != null) {
+
+                        //Create MarkerOptions object
+                        final MarkerOptions markerOptions = new MarkerOptions();
+                        markerOptions.position(pos);
+                        markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.aircraft));
+
+                        marker = mMap.addMarker(markerOptions);
+                    }
+
                 }
             }
         });
     }
 
     private boolean isFlightControllerSupported() {
-        return DJISDKManager.getInstance().getDJIProduct() != null &&
-                DJISDKManager.getInstance().getDJIProduct() instanceof DJIAircraft &&
-                ((DJIAircraft) DJISDKManager.getInstance().getDJIProduct()).getFlightController() != null;
+        return DJISDKManager.getInstance().getProduct() != null &&
+                DJISDKManager.getInstance().getProduct() instanceof Aircraft &&
+                ((Aircraft) DJISDKManager.getInstance().getProduct()).getFlightController() != null;
     }
 
     /**
@@ -498,9 +523,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
     private void printSurroundFlyZones() {
 
-        DJIFlyZoneManager.getInstance().getFlyZonesInSurroundingAre(new DJICommonCallbacks.DJICompletionCallbackWith<ArrayList<DJIFlyZoneInformation>>() {
+        DJISDKManager.getInstance().getFlyZoneManager().getFlyZonesInSurroundingArea(new CommonCallbacks.CompletionCallbackWith<ArrayList<FlyZoneInformation>>() {
             @Override
-            public void onSuccess(ArrayList<DJIFlyZoneInformation> flyZones) {
+            public void onSuccess(ArrayList<FlyZoneInformation> flyZones) {
                 showToast("get surrounding Fly Zone Success!");
                 updateFlyZonesOnTheMap(flyZones);
                 showSurroundFlyZonesInTv(flyZones);
@@ -513,18 +538,18 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         });
     }
 
-    private void showSurroundFlyZonesInTv(final ArrayList<DJIFlyZoneInformation> flyZones) {
+    private void showSurroundFlyZonesInTv(final ArrayList<FlyZoneInformation> flyZones) {
         MainActivity.this.runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 StringBuffer sb = new StringBuffer();
-                for (DJIFlyZoneInformation flyZone : flyZones) {
+                for (FlyZoneInformation flyZone : flyZones) {
                     if (flyZone != null && flyZone.getCategory() != null){
 
-                        sb.append("FlyZoneId: ").append(flyZone.getFlyZoneId()).append("\n");
+                        sb.append("FlyZoneId: ").append(flyZone.getFlyZoneID()).append("\n");
                         sb.append("Category: ").append(flyZone.getCategory().name()).append("\n");
-                        sb.append("Latitude: ").append(flyZone.getLatitude()).append("\n");
-                        sb.append("Longitude: ").append(flyZone.getLongitude()).append("\n");
+                        sb.append("Latitude: ").append(flyZone.getCoordinate().getLatitude()).append("\n");
+                        sb.append("Longitude: ").append(flyZone.getCoordinate().getLongitude()).append("\n");
                         sb.append("FlyZoneType: ").append(flyZone.getFlyZoneType().name()).append("\n");
                         sb.append("Radius: ").append(flyZone.getRadius()).append("\n");
                         sb.append("Shape: ").append(flyZone.getShape().name()).append("\n");
@@ -541,7 +566,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         });
     }
 
-    private void updateFlyZonesOnTheMap(final ArrayList<DJIFlyZoneInformation> flyZones) {
+    private void updateFlyZonesOnTheMap(final ArrayList<FlyZoneInformation> flyZones) {
         if (mMap == null) {
             return;
         }
@@ -549,30 +574,6 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             @Override
             public void run() {
                 mMap.clear();
-                for (DJIFlyZoneInformation flyZone : flyZones) {
-                    CircleOptions circle = new CircleOptions();
-                    circle.radius(flyZone.getRadius());
-                    circle.center(new LatLng(flyZone.getLatitude(), flyZone.getLongitude()));
-                    switch (flyZone.getCategory()) {
-                        case Warning:
-                            circle.strokeColor(Color.GREEN);
-                            break;
-                        case EnhancedWarning:
-                            circle.strokeColor(Color.BLUE);
-                            break;
-                        case Authorization:
-                            circle.strokeColor(Color.YELLOW);
-                            break;
-                        case Restricted:
-                            circle.strokeColor(Color.RED);
-                            break;
-
-                        default:
-                            break;
-                    }
-                    mMap.addCircle(circle);
-                }
-
                 if (latLng != null) {
 
                     //Create MarkerOptions object
@@ -582,9 +583,109 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
                     marker = mMap.addMarker(markerOptions);
                 }
+                for (FlyZoneInformation flyZone : flyZones) {
+
+                    //print polygon
+                    if(flyZone.getSubFlyZones() != null){
+                        SubFlyZoneInformation[] polygonItems = flyZone.getSubFlyZones();
+                        int itemSize = polygonItems.length;
+                        for(int i = 0; i != itemSize; ++i) {
+                            if(polygonItems[i].getShape() == SubFlyZoneShape.POLYGON) {
+                                DJILog.d("updateFlyZonesOnTheMap", "sub polygon points " + i + " size: " + polygonItems[i].getVertices().size());
+                                DJILog.d("updateFlyZonesOnTheMap", "sub polygon points " + i + " category: " + flyZone.getCategory().value());
+                                DJILog.d("updateFlyZonesOnTheMap", "sub polygon points " + i + " limit height: " + polygonItems[i].getMaxFlightHeight());
+                                addPolygonMarker(polygonItems[i].getVertices(), flyZone.getCategory().value(), polygonItems[i].getMaxFlightHeight());
+                            }
+                            else if (polygonItems[i].getShape() == SubFlyZoneShape.CYLINDER){
+                                LocationCoordinate2D tmpPos = polygonItems[i].getCenter();
+                                double subRadius = polygonItems[i].getRadius();
+                                DJILog.d("updateFlyZonesOnTheMap", "sub circle points " + i + " coordinate: " + tmpPos.getLatitude() + "," + tmpPos.getLongitude());
+                                DJILog.d("updateFlyZonesOnTheMap", "sub circle points " + i + " radius: " + subRadius);
+
+                                CircleOptions circle = new CircleOptions();
+                                circle.radius(subRadius);
+                                circle.center(new LatLng(tmpPos.getLatitude(),
+                                        tmpPos.getLongitude()));
+                                switch (flyZone.getCategory()) {
+                                    case WARNING:
+                                        circle.strokeColor(Color.GREEN);
+                                        break;
+                                    case ENHANCED_WARNING:
+                                        circle.strokeColor(Color.BLUE);
+                                        break;
+                                    case AUTHORIZATION:
+                                        circle.strokeColor(Color.YELLOW);
+                                        unlockableIds.add(flyZone.getFlyZoneID());
+                                        break;
+                                    case RESTRICTED:
+                                        circle.strokeColor(Color.RED);
+                                        break;
+
+                                    default:
+                                        break;
+                                }
+                                mMap.addCircle(circle);
+                            }
+                        }
+                    }
+                    else {
+                        CircleOptions circle = new CircleOptions();
+                        circle.radius(flyZone.getRadius());
+                        circle.center(new LatLng(flyZone.getCoordinate().getLatitude(), flyZone.getCoordinate().getLongitude()));
+                        switch (flyZone.getCategory()) {
+                            case WARNING:
+                                circle.strokeColor(Color.GREEN);
+                                break;
+                            case ENHANCED_WARNING:
+                                circle.strokeColor(Color.BLUE);
+                                break;
+                            case AUTHORIZATION:
+                                circle.strokeColor(Color.YELLOW);
+                                unlockableIds.add(flyZone.getFlyZoneID());
+                                break;
+                            case RESTRICTED:
+                                circle.strokeColor(Color.RED);
+                                break;
+
+                            default:
+                                break;
+                        }
+                        mMap.addCircle(circle);
+                    }
+                }
 
             }
         });
+
+    }
+
+
+    /**
+     * 新版多边形限飞区使用
+     * @param area_level
+     */
+    private void addPolygonMarker(List<LocationCoordinate2D> polygonPoints, int area_level, int height) {
+        if(polygonPoints == null) {
+            return;
+        }
+
+        ArrayList<LatLng> points = new ArrayList<>();
+
+        for (LocationCoordinate2D point : polygonPoints) {
+            points.add(new LatLng(point.getLatitude(), point.getLongitude()));
+        }
+        int fillColor = limitFillColor;
+        if(painter.getmHeightToColor().get(height) != null) {
+            fillColor = painter.getmHeightToColor().get(height);
+        }
+        else if(area_level == FlyForbidProtocol.LevelType.CAN_UNLIMIT.value()) {
+            fillColor = limitCanUnlimitFillColor;
+        } else if(area_level == FlyForbidProtocol.LevelType.STRONG_WARNING.value() || area_level == FlyForbidProtocol.LevelType.WARNING.value()) {
+            fillColor = getResources().getColor(R.color.gs_home_fill);
+        }
+        Polygon plg = mMap.addPolygon(new PolygonOptions().addAll(points)
+                .strokeColor(painter.getmColorTransparent())
+                .fillColor(fillColor));
 
     }
 
