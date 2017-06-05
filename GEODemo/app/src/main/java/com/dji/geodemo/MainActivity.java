@@ -36,12 +36,12 @@ import java.util.List;
 
 import dji.common.error.DJIError;
 import dji.common.flightcontroller.FlightControllerState;
-import dji.common.flightcontroller.UserAccountState;
 import dji.common.flightcontroller.flyzone.FlyZoneInformation;
 import dji.common.flightcontroller.flyzone.FlyZoneState;
 import dji.common.flightcontroller.flyzone.SubFlyZoneInformation;
 import dji.common.flightcontroller.flyzone.SubFlyZoneShape;
 import dji.common.model.LocationCoordinate2D;
+import dji.common.useraccount.UserAccountState;
 import dji.common.util.CommonCallbacks;
 import dji.log.DJILog;
 import dji.midware.data.forbid.FlyForbidProtocol;
@@ -50,6 +50,7 @@ import dji.sdk.base.BaseProduct;
 import dji.sdk.flightcontroller.FlightController;
 import dji.sdk.products.Aircraft;
 import dji.sdk.sdkmanager.DJISDKManager;
+import dji.sdk.useraccount.UserAccountManager;
 
 public class MainActivity extends FragmentActivity implements View.OnClickListener, OnMapReadyCallback {
 
@@ -228,7 +229,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         MainActivity.this.runOnUiThread(new Runnable() {
             public void run() {
 
-                loginStatusTv.setText(DJISDKManager.getInstance().getFlyZoneManager().getUserAccountState().name());
+                loginStatusTv.setText(UserAccountManager.getInstance().getUserAccountState().name());
+
             }
         });
 
@@ -246,7 +248,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.geo_login_btn:
-                DJISDKManager.getInstance().getFlyZoneManager().logIntoDJIUserAccount(this,
+
+                UserAccountManager.getInstance().logIntoDJIUserAccount(this,
                         new CommonCallbacks.CompletionCallbackWith<UserAccountState>() {
                             @Override
                             public void onSuccess(final UserAccountState userAccountState) {
@@ -269,7 +272,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
             case R.id.geo_logout_btn:
 
-                DJISDKManager.getInstance().getFlyZoneManager().logoutOfDJIUserAccount(new CommonCallbacks.CompletionCallback() {
+                UserAccountManager.getInstance().logoutOfDJIUserAccount(new CommonCallbacks.CompletionCallback() {
                     @Override
                     public void onResult(DJIError error) {
                         if (null == error) {
@@ -343,9 +346,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
             case R.id.geo_get_unlock_nfzs_btn:
 
-                DJISDKManager.getInstance().getFlyZoneManager().getUnlockedFlyZones(new CommonCallbacks.CompletionCallbackWith<ArrayList<FlyZoneInformation>>(){
+                DJISDKManager.getInstance().getFlyZoneManager().getUnlockedFlyZones(new CommonCallbacks.CompletionCallbackWith<List<FlyZoneInformation>>(){
                     @Override
-                    public void onSuccess(final ArrayList<FlyZoneInformation> flyZoneInformations) {
+                        public void onSuccess(final List<FlyZoneInformation> flyZoneInformations) {
                         showToast("Get Unlock NFZ success");
                         showSurroundFlyZonesInTv(flyZoneInformations);
                     }
@@ -538,7 +541,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         });
     }
 
-    private void showSurroundFlyZonesInTv(final ArrayList<FlyZoneInformation> flyZones) {
+    private void showSurroundFlyZonesInTv(final List<FlyZoneInformation> flyZones) {
         MainActivity.this.runOnUiThread(new Runnable() {
             @Override
             public void run() {
