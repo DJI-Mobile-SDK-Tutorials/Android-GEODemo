@@ -128,6 +128,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         super.onResume();
         updateTitleBar();
         initFlightController();
+        loginAccount();
     }
 
     @Override
@@ -157,6 +158,22 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     protected void onDestroy() {
         Log.e(TAG, "onDestroy");
         super.onDestroy();
+    }
+
+    private void loginAccount(){
+
+        UserAccountManager.getInstance().logIntoDJIUserAccount(this,
+                new CommonCallbacks.CompletionCallbackWith<UserAccountState>() {
+                    @Override
+                    public void onSuccess(final UserAccountState userAccountState) {
+                        Log.e(TAG, "Login Success");
+                    }
+                    @Override
+                    public void onFailure(DJIError error) {
+                        showToast("Login Error:"
+                                + error.getDescription());
+                    }
+                });
     }
 
     private void updateTitleBar() {
