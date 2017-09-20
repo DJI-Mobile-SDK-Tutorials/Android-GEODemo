@@ -572,7 +572,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                         sb.append("Longitude: ").append(flyZone.getCoordinate().getLongitude()).append("\n");
                         sb.append("FlyZoneType: ").append(flyZone.getFlyZoneType().name()).append("\n");
                         sb.append("Radius: ").append(flyZone.getRadius()).append("\n");
-                        sb.append("Shape: ").append(flyZone.getShape().name()).append("\n");
+                        if(flyZone.getShape() != null){
+                            sb.append("Shape: ").append(flyZone.getShape().name()).append("\n");
+                        }
                         sb.append("StartTime: ").append(flyZone.getStartTime()).append("\n");
                         sb.append("EndTime: ").append(flyZone.getEndTime()).append("\n");
                         sb.append("UnlockStartTime: ").append(flyZone.getUnlockStartTime()).append("\n");

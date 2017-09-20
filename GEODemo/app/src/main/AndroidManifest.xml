@@ -75,7 +75,7 @@
         </activity>
 
         <service android:name="dji.sdk.sdkmanager.DJIGlobalService" />
-        <service android:name="dji.internal.geofeature.flyforbid.FlyforbidUpdateService" />
+        <service android:name="dji.pilot.flyforbid.FlyforbidUpdateService" />
 
         <!-- DJI SDK -->
 
