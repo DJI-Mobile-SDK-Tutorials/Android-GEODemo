@@ -28,6 +28,17 @@ public class GEODemoApplication extends Application {
 
     private Handler mHandler;
 
+    private Application application;
+
+    public GEODemoApplication(Application mApplication) {
+        application = mApplication;
+    }
+
+    @Override
+    public Context getApplicationContext() {
+        return application;
+    }
+
     /**
      * Gets instance of the specific product connected after the
      * API KEY is successfully validated. Please make sure the
@@ -49,10 +60,6 @@ public class GEODemoApplication extends Application {
         return (Aircraft) getProductInstance();
     }
 
-    protected void attachBaseContext(Context base){
-        super.attachBaseContext(base);
-        MultiDex.install(this);
-    }
 
     @Override
     public void onCreate() {
@@ -60,12 +67,12 @@ public class GEODemoApplication extends Application {
         mHandler = new Handler(Looper.getMainLooper());
 
         //Check the permissions before registering the application for android system 6.0 above.
-        int permissionCheck = ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        int permissionCheck2 = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_PHONE_STATE);
+        int permissionCheck = ContextCompat.checkSelfPermission(application, android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        int permissionCheck2 = ContextCompat.checkSelfPermission(application, android.Manifest.permission.READ_PHONE_STATE);
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || (permissionCheck == 0 && permissionCheck2 == 0)) {
 
             //This is used to start SDK services and initiate SDK.
-            DJISDKManager.getInstance().registerApp(this, mDJISDKManagerCallback);
+            DJISDKManager.getInstance().registerApp(application, mDJISDKManagerCallback);
         } else {
             Toast.makeText(getApplicationContext(), "Please check if the permission is granted.", Toast.LENGTH_LONG).show();
         }
@@ -154,7 +161,7 @@ public class GEODemoApplication extends Application {
         @Override
         public void run() {
             Intent intent = new Intent(FLAG_CONNECTION_CHANGE);
-            sendBroadcast(intent);
+            application.sendBroadcast(intent);
         }
     };
 

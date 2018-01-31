@@ -46,7 +46,7 @@
             android:layout_height="match_parent"
             android:id="@+id/map"
             tools:context="com.dji.myapplication.MainActivity"
-            android:name="com.google.android.gms.maps.SupportMapFragment"/>
+            android:name="com.google.android.gms.maps.SupportMapFragment" />
 
         <ScrollView
             android:layout_width="wrap_content"
@@ -94,16 +94,6 @@
                     android:id="@+id/geo_update_location_btn"
                     style="@style/left_button_list_button"
                     android:text="@string/geo_update_location" />
-
-                <Button
-                    android:id="@+id/geo_set_geo_enabled_btn"
-                    style="@style/left_button_list_button"
-                    android:text="@string/geo_set_geo_enabled"/>
-
-                <Button
-                    android:id="@+id/geo_get_geo_enabled_btn"
-                    style="@style/left_button_list_button"
-                    android:text="@string/geo_get_geo_enabled"/>
 
             </LinearLayout>
         </ScrollView>

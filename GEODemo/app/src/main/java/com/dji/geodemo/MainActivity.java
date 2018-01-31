@@ -65,8 +65,6 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private Button btnUnlock;
     private Button btnGetUnlock;
     private Button btnGetSurroundNFZ;
-    private Button btnSetEnableGeoSystem;
-    private Button btnGetEnableGeoSystem;
     private Button btnUpdateLocation;
 
     private TextView loginStatusTv;
@@ -225,8 +223,6 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         btnUnlock = (Button) findViewById(R.id.geo_unlock_nfzs_btn);
         btnGetUnlock = (Button) findViewById(R.id.geo_get_unlock_nfzs_btn);
         btnGetSurroundNFZ = (Button) findViewById(R.id.geo_get_surrounding_nfz_btn);
-        btnSetEnableGeoSystem = (Button) findViewById(R.id.geo_set_geo_enabled_btn);
-        btnGetEnableGeoSystem = (Button) findViewById(R.id.geo_get_geo_enabled_btn);
         btnUpdateLocation = (Button) findViewById(R.id.geo_update_location_btn);
 
         loginStatusTv = (TextView) findViewById(R.id.login_status);
@@ -239,8 +235,6 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         btnUnlock.setOnClickListener(this);
         btnGetUnlock.setOnClickListener(this);
         btnGetSurroundNFZ.setOnClickListener(this);
-        btnSetEnableGeoSystem.setOnClickListener(this);
-        btnGetEnableGeoSystem.setOnClickListener(this);
         btnUpdateLocation.setOnClickListener(this);
 
         MainActivity.this.runOnUiThread(new Runnable() {
@@ -397,69 +391,15 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 mMap.animateCamera(CameraUpdateFactory.zoomTo(15.0f));
                 break;
 
-            case R.id.geo_set_geo_enabled_btn:
-
-                final AlertDialog.Builder setGEObuilder = new AlertDialog.Builder(this);
-                setGEObuilder.setTitle("Set GEO Enable");
-                setGEObuilder.setItems(new CharSequence[]
-                                {"Enable", "Disable", "Cancel"},
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-                                // The 'which' argument contains the index position
-                                // of the selected item
-                                switch (which) {
-                                    case 0:
-                                        DJISDKManager.getInstance().getFlyZoneManager().setGEOSystemEnabled(true, new CommonCallbacks.CompletionCallback() {
-                                            @Override
-                                            public void onResult(DJIError djiError) {
-                                                if (null == djiError) {
-                                                    showToast("set GEO Enabled Success");
-                                                } else {
-                                                    showToast(djiError.getDescription());
-                                                }
-                                            }
-                                        });
-                                        break;
-                                    case 1:
-
-                                        DJISDKManager.getInstance().getFlyZoneManager().setGEOSystemEnabled(false,
-                                                new CommonCallbacks.CompletionCallback() {
-                                                    @Override
-                                                    public void onResult(DJIError error) {
-                                                        if (null == error) {
-                                                            showToast("set GEO Disable Success");
-                                                        } else {
-                                                            showToast(error.getDescription());
-                                                        }
-                                                    }
-                                                });
-
-                                        break;
-                                    case 2:
-                                        dialog.dismiss();
-                                        break;
-                                }
-                            }
-                        });
-
-                setGEObuilder.show();
-                break;
-
-            case R.id.geo_get_geo_enabled_btn:
-                DJISDKManager.getInstance().getFlyZoneManager().getGEOSystemEnabled(new CommonCallbacks.CompletionCallbackWith<Boolean>() {
-
-                    @Override
-                    public void onSuccess(Boolean aBoolean) {
-                        showToast("GEO System Enable");
-                    }
-
-                    @Override
-                    public void onFailure(DJIError error) {
-                        showToast(error.getDescription());
-                    }
-                });
-                break;
         }
+    }
+
+    private ArrayList<String> makeList(Object[] o) {
+        ArrayList<String> list = new ArrayList<String>();
+        for (int i = 0; i < o.length; i++) {
+            list.add(o[i].toString());
+        }
+        return list;
     }
 
     private void initFlightController() {
