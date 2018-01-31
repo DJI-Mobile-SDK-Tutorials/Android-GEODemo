@@ -394,14 +394,6 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         }
     }
 
-    private ArrayList<String> makeList(Object[] o) {
-        ArrayList<String> list = new ArrayList<String>();
-        for (int i = 0; i < o.length; i++) {
-            list.add(o[i].toString());
-        }
-        return list;
-    }
-
     private void initFlightController() {
 
         if (isFlightControllerSupported()) {
