@@ -74,8 +74,6 @@
                 android:resource="@xml/accessory_filter" />
         </activity>
 
-        <!--<service android:name="dji.sdk.sdkmanager.DJIGlobalService" />-->
-        <!--<service android:name="dji.pilot.flyforbid.FlyforbidUpdateService" />-->
 
         <!-- DJI SDK -->
 

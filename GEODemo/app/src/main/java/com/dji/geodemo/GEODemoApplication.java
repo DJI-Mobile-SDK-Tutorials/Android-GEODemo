@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.multidex.MultiDex;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.widget.Toast;
@@ -14,6 +13,7 @@ import android.widget.Toast;
 import dji.sdk.base.BaseComponent;
 import dji.sdk.base.BaseProduct;
 import dji.sdk.products.Aircraft;
+import dji.sdk.sdkmanager.BluetoothProductConnector;
 import dji.sdk.sdkmanager.DJISDKManager;
 import dji.common.error.DJIError;
 import dji.common.error.DJISDKError;
@@ -21,13 +21,10 @@ import dji.common.error.DJISDKError;
 public class GEODemoApplication extends Application {
 
     private static final String TAG = GEODemoApplication.class.getName();
-
     public static final String FLAG_CONNECTION_CHANGE = "com_dji_GEODemo_connection_change";
 
-    private static BaseProduct mProduct;
-
+    private static BaseProduct product;
     private Handler mHandler;
-
     private Application application;
 
     public GEODemoApplication(Application mApplication) {
@@ -45,10 +42,10 @@ public class GEODemoApplication extends Application {
      * API_KEY has been added in the Manifest
      */
     public static synchronized BaseProduct getProductInstance() {
-        if (null == mProduct) {
-            mProduct = DJISDKManager.getInstance().getProduct();
+        if (null == product) {
+            product = DJISDKManager.getInstance().getProduct();
         }
-        return mProduct;
+        return product;
     }
 
     public static boolean isAircraftConnected() {
@@ -86,8 +83,8 @@ public class GEODemoApplication extends Application {
 
         //Listens to the SDK registration result
         @Override
-        public void onRegister(DJIError error) {
-            if(error == DJISDKError.REGISTRATION_SUCCESS) {
+        public void onRegister(final DJIError error) {
+            if (error == DJISDKError.REGISTRATION_SUCCESS) {
                 DJISDKManager.getInstance().startConnectionToProduct();
                 Handler handler = new Handler(Looper.getMainLooper());
                 handler.post(new Runnable() {
@@ -103,6 +100,7 @@ public class GEODemoApplication extends Application {
                     @Override
                     public void run() {
                         Toast.makeText(getApplicationContext(), "register sdk fails, check network is available", Toast.LENGTH_LONG).show();
+                        Log.e(TAG, error.getDescription());
                     }
                 });
 
@@ -114,9 +112,9 @@ public class GEODemoApplication extends Application {
         @Override
         public void onProductChange(BaseProduct oldProduct, BaseProduct newProduct) {
 
-            mProduct = newProduct;
-            if(mProduct != null) {
-                mProduct.setBaseProductListener(mDJIBaseProductListener);
+            product = newProduct;
+            if(product != null) {
+                product.setBaseProductListener(mDJIBaseProductListener);
             }
 
             notifyStatusChange();

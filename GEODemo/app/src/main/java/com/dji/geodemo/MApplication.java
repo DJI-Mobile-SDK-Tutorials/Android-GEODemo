@@ -5,8 +5,9 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.support.multidex.MultiDex;
 
-import com.dji.geodemo.GEODemoApplication;
 import com.secneo.sdk.Helper;
+
+//import com.secneo.sdk.Helper;
 
 public class MApplication extends Application {
 

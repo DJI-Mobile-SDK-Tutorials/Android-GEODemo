@@ -11,5 +11,7 @@
     <color name="colorBlack">#000000</color>
     <color name="gs_home_stroke">#b200ae39</color>
     <color name="gs_home_fill">#0d1eff00</color>
+    <color name="auth_fill">#28FFFF00</color>
+    <color name="limit_fill">#78FF0000</color>
 
 </resources>

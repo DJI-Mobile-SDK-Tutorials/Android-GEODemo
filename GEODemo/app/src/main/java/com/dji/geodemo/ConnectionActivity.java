@@ -15,6 +15,7 @@ import android.widget.TextView;
 
 import dji.sdk.base.BaseProduct;
 import dji.sdk.products.Aircraft;
+import dji.sdk.sdkmanager.DJISDKManager;
 
 public class ConnectionActivity extends Activity implements View.OnClickListener {
 
@@ -22,6 +23,7 @@ public class ConnectionActivity extends Activity implements View.OnClickListener
 
     private TextView mTextConnectionStatus;
     private TextView mTextProduct;
+    private TextView mVersionTv;
     private Button mBtnOpen;
 
     @Override
@@ -54,24 +56,6 @@ public class ConnectionActivity extends Activity implements View.OnClickListener
         registerReceiver(mReceiver, filter);
     }
 
-    @Override
-    public void onResume() {
-        Log.e(TAG, "onResume");
-        super.onResume();
-    }
-
-    @Override
-    public void onPause() {
-        Log.e(TAG, "onPause");
-        super.onPause();
-    }
-
-    @Override
-    public void onStop() {
-        Log.e(TAG, "onStop");
-        super.onStop();
-    }
-
     public void onReturn(View view){
         Log.e(TAG, "onReturn");
         this.finish();
@@ -81,10 +65,13 @@ public class ConnectionActivity extends Activity implements View.OnClickListener
 
         mTextConnectionStatus = (TextView) findViewById(R.id.text_connection_status);
         mTextProduct = (TextView) findViewById(R.id.text_product_info);
+
+        mVersionTv = (TextView) findViewById(R.id.text_version);
+        mVersionTv.setText(getResources().getString(R.string.sdk_version, DJISDKManager.getInstance().getSDKVersion()));
+
         mBtnOpen = (Button) findViewById(R.id.btn_open);
         mBtnOpen.setOnClickListener(this);
         mBtnOpen.setEnabled(false);
-
     }
 
     @Override

@@ -3,19 +3,19 @@ package com.dji.geodemo;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
-
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
+import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
-import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.NumberPicker;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,26 +31,27 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import dji.common.error.DJIError;
 import dji.common.flightcontroller.FlightControllerState;
+import dji.common.flightcontroller.flyzone.CustomUnlockZone;
+import dji.common.flightcontroller.flyzone.FlyZoneCategory;
 import dji.common.flightcontroller.flyzone.FlyZoneInformation;
 import dji.common.flightcontroller.flyzone.FlyZoneState;
 import dji.common.flightcontroller.flyzone.SubFlyZoneInformation;
 import dji.common.flightcontroller.flyzone.SubFlyZoneShape;
+import dji.common.flightcontroller.flyzone.UnlockedZoneGroup;
 import dji.common.model.LocationCoordinate2D;
 import dji.common.useraccount.UserAccountState;
 import dji.common.util.CommonCallbacks;
 import dji.log.DJILog;
-import dji.midware.data.forbid.FlyForbidProtocol;
-import dji.midware.data.model.P3.DataOsdGetPushCommon;
 import dji.sdk.base.BaseProduct;
 import dji.sdk.flightcontroller.FlightController;
 import dji.sdk.products.Aircraft;
 import dji.sdk.sdkmanager.DJISDKManager;
 import dji.sdk.useraccount.UserAccountManager;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends FragmentActivity implements View.OnClickListener, OnMapReadyCallback {
 
@@ -66,6 +67,14 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private Button btnGetUnlock;
     private Button btnGetSurroundNFZ;
     private Button btnUpdateLocation;
+    private Button btnLoadCustomUnlockZones;
+    private Button btnGetCustomUnlockZones;
+    private Button btnEnableCustomUnlockZone;
+    private Button btnDisableCustomUnlockZone;
+    private Button btnGetEnabledCustomUnlockZone;
+    private Button btnRefreshLicense;
+    private Button btnUploadToAircraft;
+    private Button btnGetCachedLicense;
 
     private TextView loginStatusTv;
     private TextView flyZonesTv;
@@ -76,10 +85,10 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private MarkerOptions markerOptions = new MarkerOptions();
     private LatLng latLng;
     private double droneLocationLat = 181, droneLocationLng = 181;
-    private ArrayList<Integer> unlockFlyZoneIds = new ArrayList<Integer>();
-    private final int limitFillColor = Color.HSVToColor(120, new float[] {0, 1, 1});
-    private final int limitCanUnlimitFillColor = Color.argb(40, 0xFF, 0xFF, 0x00);
+    private ArrayList<CustomUnlockZone> customUnlockZones;
+    private ArrayList<Integer> flyZoneIdsToUnlock = new ArrayList<Integer>();
     private FlyfrbBasePainter painter = new FlyfrbBasePainter();
+    private boolean isMapReady = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,8 +115,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         initUI();
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
         DJISDKManager.getInstance().getFlyZoneManager()
@@ -118,6 +126,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     }
                 });
 
+        markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.aircraft));
     }
 
     @Override
@@ -129,33 +138,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         loginAccount();
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-
-    }
-
-    @Override
-    public void onPause() {
-        Log.e(TAG, "onPause");
-        super.onPause();
-    }
-
-    @Override
-    public void onStop() {
-        Log.e(TAG, "onStop");
-        super.onStop();
-    }
-
     public void onReturn(View view) {
         Log.e(TAG, "onReturn");
         this.finish();
-    }
-
-    @Override
-    protected void onDestroy() {
-        Log.e(TAG, "onDestroy");
-        super.onDestroy();
     }
 
     private void loginAccount(){
@@ -164,12 +149,17 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 new CommonCallbacks.CompletionCallbackWith<UserAccountState>() {
                     @Override
                     public void onSuccess(final UserAccountState userAccountState) {
-                        Log.e(TAG, "Login Success");
+                        showToast("Login Success: " + userAccountState.name());
+                        MainActivity.this.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                loginStatusTv.setText(userAccountState.name());
+                            }
+                        });
                     }
                     @Override
                     public void onFailure(DJIError error) {
-                        showToast("Login Error:"
-                                + error.getDescription());
+                        showToast("Login Error: " + error.getDescription());
                     }
                 });
     }
@@ -224,6 +214,14 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         btnGetUnlock = (Button) findViewById(R.id.geo_get_unlock_nfzs_btn);
         btnGetSurroundNFZ = (Button) findViewById(R.id.geo_get_surrounding_nfz_btn);
         btnUpdateLocation = (Button) findViewById(R.id.geo_update_location_btn);
+        btnLoadCustomUnlockZones = (Button) findViewById(R.id.geo_load_custom_unlock_zones);
+        btnGetCustomUnlockZones = (Button) findViewById(R.id.geo_get_custom_unlock_zones);
+        btnEnableCustomUnlockZone = (Button) findViewById(R.id.geo_enable_custom_unlock_zone);
+        btnDisableCustomUnlockZone = (Button) findViewById(R.id.geo_disable_custom_unlock_zone);
+        btnGetEnabledCustomUnlockZone = (Button) findViewById(R.id.geo_get_enabled_custom_unlock_zone);
+        btnRefreshLicense = (Button) findViewById(R.id.geo_reload_unlocked_zone_groups_from_server);
+        btnUploadToAircraft = (Button) findViewById(R.id.geo_sync_unlocked_zone_group_to_aircraft);
+        btnGetCachedLicense = (Button) findViewById(R.id.geo_get_loaded_unlocked_zone_groups);
 
         loginStatusTv = (TextView) findViewById(R.id.login_status);
         loginStatusTv.setTextColor(Color.BLACK);
@@ -236,6 +234,14 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         btnGetUnlock.setOnClickListener(this);
         btnGetSurroundNFZ.setOnClickListener(this);
         btnUpdateLocation.setOnClickListener(this);
+        btnLoadCustomUnlockZones.setOnClickListener(this);
+        btnGetCustomUnlockZones.setOnClickListener(this);
+        btnEnableCustomUnlockZone.setOnClickListener(this);
+        btnDisableCustomUnlockZone.setOnClickListener(this);
+        btnGetEnabledCustomUnlockZone.setOnClickListener(this);
+        btnRefreshLicense.setOnClickListener(this);
+        btnUploadToAircraft.setOnClickListener(this);
+        btnGetCachedLicense.setOnClickListener(this);
 
         MainActivity.this.runOnUiThread(new Runnable() {
             public void run() {
@@ -260,25 +266,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         switch (v.getId()) {
             case R.id.geo_login_btn:
 
-                UserAccountManager.getInstance().logIntoDJIUserAccount(this,
-                        new CommonCallbacks.CompletionCallbackWith<UserAccountState>() {
-                            @Override
-                            public void onSuccess(final UserAccountState userAccountState) {
-                                showToast(userAccountState.name());
-                                MainActivity.this.runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        loginStatusTv.setText(userAccountState.name());
-                                    }
-                                });
-                            }
-
-                            @Override
-                            public void onFailure(DJIError error) {
-                                showToast(error.getDescription());
-                            }
-                        });
-
+                loginAccount();
                 break;
 
             case R.id.geo_logout_btn:
@@ -287,15 +275,15 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     @Override
                     public void onResult(DJIError error) {
                         if (null == error) {
-                            showToast("logoutOfDJIUserAccount Success");
+                            showToast("Logout Success");
                             MainActivity.this.runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    loginStatusTv.setText("NotLoggedin");
+                                    loginStatusTv.setText("NotLoggedIn");
                                 }
                             });
                         } else {
-                            showToast(error.getDescription());
+                            showToast("Logout Error: " + error.getDescription());
                         }
                     }
                 });
@@ -304,60 +292,12 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
             case R.id.geo_unlock_nfzs_btn:
 
-                final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                final EditText input = new EditText(this);
-                input.setHint("Enter Fly Zone ID");
-                input.setInputType(EditorInfo.TYPE_CLASS_NUMBER);
-                builder.setView(input);
-                builder.setTitle("Unlock Fly Zones");
-                builder.setItems(new CharSequence[]
-                                {"Continue", "Unlock", "Cancel"},
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-                                // The 'which' argument contains the index position
-                                // of the selected item
-                                switch (which) {
-                                    case 0:
-                                        if (TextUtils.isEmpty(input.getText())) {
-                                            dialog.dismiss();
-                                        } else {
-                                            String value1 = input.getText().toString();
-                                            unlockFlyZoneIds.add(Integer.parseInt(value1));
-                                        }
-                                        break;
-                                    case 1:
-                                        if (TextUtils.isEmpty(input.getText())) {
-                                            dialog.dismiss();
-                                        } else {
-                                            String value2 = input.getText().toString();
-                                            unlockFlyZoneIds.add(Integer.parseInt(value2));
-                                            DJISDKManager.getInstance().getFlyZoneManager().unlockFlyZones(unlockFlyZoneIds, new CommonCallbacks.CompletionCallback() {
-                                                @Override
-                                                public void onResult(DJIError error) {
-
-                                                    unlockFlyZoneIds.clear();
-                                                    if (error == null) {
-                                                        showToast("unlock NFZ Success!");
-                                                    } else {
-                                                        showToast(error.getDescription());
-                                                    }
-                                                }
-                                            });
-                                        }
-                                        break;
-                                    case 2:
-                                        dialog.dismiss();
-                                        break;
-                                }
-                            }
-                        });
-
-                builder.show();
+                unlockNFZs();
                 break;
 
             case R.id.geo_get_unlock_nfzs_btn:
 
-                DJISDKManager.getInstance().getFlyZoneManager().getUnlockedFlyZones(new CommonCallbacks.CompletionCallbackWith<List<FlyZoneInformation>>(){
+                DJISDKManager.getInstance().getFlyZoneManager().getUnlockedFlyZonesForAircraft(new CommonCallbacks.CompletionCallbackWith<List<FlyZoneInformation>>(){
                     @Override
                         public void onSuccess(final List<FlyZoneInformation> flyZoneInformations) {
                         showToast("Get Unlock NFZ success");
@@ -366,7 +306,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
                     @Override
                     public void onFailure(DJIError djiError) {
-                        showToast(djiError.getDescription());
+                        showToast("Get Unlock NFZ failed: " + djiError.getDescription());
                     }
                 });
 
@@ -377,18 +317,213 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 break;
 
             case R.id.geo_update_location_btn:
-                latLng = new LatLng(DataOsdGetPushCommon.getInstance().getLatitude(),
-                        DataOsdGetPushCommon.getInstance().getLongitude());
-                if (latLng != null) {
+                latLng = new LatLng(droneLocationLat, droneLocationLng);
 
-                    //Create MarkerOptions object
-                    final MarkerOptions markerOptions = new MarkerOptions();
-                    markerOptions.position(latLng);
-                    markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.aircraft));
-                    marker = mMap.addMarker(markerOptions);
-                }
+                marker = mMap.addMarker(markerOptions.position(latLng));
+
                 mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
                 mMap.animateCamera(CameraUpdateFactory.zoomTo(15.0f));
+                break;
+
+            case R.id.geo_load_custom_unlock_zones:
+                DJISDKManager.getInstance().getFlyZoneManager().reloadUnlockedZoneGroupsFromServer(new CommonCallbacks.CompletionCallback() {
+                    @Override
+                    public void onResult(DJIError error) {
+                        if (error == null) {
+                            showToast("refresh successful");
+                        }
+                        else {
+                            showToast("refresh failed: " + error.getDescription());
+                        }
+
+                    }
+                });
+                break;
+
+
+            case R.id.geo_reload_unlocked_zone_groups_from_server:
+                DJISDKManager.getInstance().getFlyZoneManager().reloadUnlockedZoneGroupsFromServer(new CommonCallbacks.CompletionCallback() {
+                    @Override
+                    public void onResult(DJIError error) {
+                        showToast("reloadUnlockedZoneGroupsFromServer successful");
+                    }
+                });
+                break;
+
+            case R.id.geo_sync_unlocked_zone_group_to_aircraft:
+                DJISDKManager.getInstance().getFlyZoneManager().syncUnlockedZoneGroupToAircraft(new CommonCallbacks.CompletionCallback() {
+                    @Override
+                    public void onResult(DJIError error) {
+                        if (error == null) {
+                            showToast("upload to aircraft successful");
+                        }
+                        else {
+                            showToast("upload to aircraft failed: " + error.getDescription());
+                        }
+                    }
+                });
+                break;
+
+            case R.id.geo_get_loaded_unlocked_zone_groups:
+                DJISDKManager.getInstance().getFlyZoneManager().getLoadedUnlockedZoneGroups(new CommonCallbacks.CompletionCallbackWith<List<UnlockedZoneGroup>>() {
+                    @Override
+                    public void onSuccess(List<UnlockedZoneGroup> unlockedZoneGroups) {
+                        StringBuffer cacheZones = new StringBuffer("*** LoadedUnlockedZoneGroups ***\n");
+                        if (unlockedZoneGroups != null){
+                            for (UnlockedZoneGroup group : unlockedZoneGroups) {
+                                cacheZones.append(" == SN: " + group.getSn() + "\n");
+                                cacheZones.append(printCustomUnlockZone(group.getCustomUnlockZones()));
+                                cacheZones.append("\n");
+                                cacheZones.append(printFlyZoneInformation(group.getSelfUnlockedFlyZones()));
+                                cacheZones.append("\n");
+                            }
+                        }
+
+                        final String zones = cacheZones.toString();
+                        MainActivity.this.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                flyZonesTv.setText(zones);
+                                if (!isMapReady) {
+                                    flyZonesTv.setTextColor(Color.WHITE);
+                                }
+
+                            }
+                        });
+                    }
+                    @Override
+                    public void onFailure(DJIError error) {
+                        showToast("getLoadedUnlockedZoneGroups failed : " + error.getDescription());
+                    }
+                });
+                break;
+
+            case R.id.geo_get_custom_unlock_zones:
+                DJISDKManager.getInstance().getFlyZoneManager().getCustomUnlockZonesFromAircraft(new CommonCallbacks.CompletionCallbackWith<List<CustomUnlockZone>>() {
+                    @Override
+                    public void onSuccess(final List<CustomUnlockZone> customUnlockZones) {
+                        showToast("get custom unlock zones successful size: " + customUnlockZones.size());
+                        MainActivity.this.customUnlockZones = (ArrayList<CustomUnlockZone>) customUnlockZones;
+                        final StringBuffer sb = new StringBuffer();
+                        for (final CustomUnlockZone area : customUnlockZones) {
+                            if (isMapReady) {
+                                MainActivity.this.runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        double r = area.getRadius();
+                                        double lat = area.getCenter().getLatitude();
+                                        double lon = area.getCenter().getLongitude();
+                                        CircleOptions circle = new CircleOptions();
+                                        circle.radius(r);
+                                        circle.center(new LatLng(lat, lon));
+                                        if (area.isEnabled()) {
+                                            circle.strokeColor(Color.YELLOW);
+                                        } else {
+                                            circle.strokeColor(Color.RED);
+                                        }
+                                        mMap.addCircle(circle);
+                                    }
+                                });
+                            }
+
+                            sb.append("id: ").append(area.getID()).append("\n");
+                            sb.append("name: ").append(area.getName()).append("\n");
+                            sb.append("isEnabled: ").append(area.isEnabled()).append("\n");
+                            sb.append("isExpired: ").append(area.isExpired()).append("\n");
+                            sb.append("lat: ").append(area.getCenter().getLatitude()).append("\n");
+                            sb.append("lon: ").append(area.getCenter().getLongitude()).append("\n");
+                            sb.append("radius: ").append(area.getRadius()).append("\n");
+                            sb.append("start time: ").append(area.getStartTime()).append("\n");
+                            sb.append("end time: ").append(area.getEndTime()).append("\n");
+                        }
+                        MainActivity.this.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                flyZonesTv.setText(sb);
+
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(DJIError error) {
+                        showToast("get custom unlock zones failed: " + error.getDescription());
+                    }
+                });
+                break;
+
+            case R.id.geo_enable_custom_unlock_zone:
+                if (customUnlockZones == null || customUnlockZones.size() == 0) {
+                    showToast("No custom unlock zones in the aircraft!");
+                    break;
+                } else {
+                    final String[] names = new String[customUnlockZones.size()];
+                    for (int i=0; i< customUnlockZones.size(); i++) {
+                        CustomUnlockZone customUnlockZone = customUnlockZones.get(i);
+                        names[i] = customUnlockZone.getName();
+                    }
+
+                    final NumberPicker numberPicker = new NumberPicker(this);
+                    numberPicker.setMinValue(0);
+                    numberPicker.setMaxValue(names.length-1);
+                    numberPicker.setDisplayedValues(names);
+
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                    builder.setView(numberPicker);
+                    builder.setTitle("Enable Custom Unlock Zone");
+                    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            CustomUnlockZone customUnlockZone = customUnlockZones.get(numberPicker.getValue());
+                            DJISDKManager.getInstance().getFlyZoneManager().enableCustomUnlockZone(customUnlockZone, new CommonCallbacks.CompletionCallback() {
+                                @Override
+                                public void onResult(DJIError error) {
+                                    if (null == error) {
+                                        showToast("Enable custom unlock zone successfully!");
+                                    } else {
+                                        showToast("Enable custom unlock zone failed: " + error.getDescription());
+                                    }
+                                }
+                            });
+                        }
+                    });
+                    builder.show();
+                }
+            case R.id.geo_disable_custom_unlock_zone:
+
+                if (customUnlockZones == null || customUnlockZones.size() == 0) {
+                    showToast("No custom unlock zones in the aircraft!");
+                    break;
+                } else {
+                    DJISDKManager.getInstance().getFlyZoneManager().enableCustomUnlockZone(null, new CommonCallbacks.CompletionCallback() {
+                        @Override
+                        public void onResult(DJIError error) {
+                            if (null == error) {
+                                showToast("Disable custom unlock zone successfully!");
+                            }
+                            else {
+                                showToast("Disable custom unlock zone failed: " + error.getDescription());
+                            }
+                        }
+                    });
+                }
+
+            case R.id.geo_get_enabled_custom_unlock_zone:
+                DJISDKManager.getInstance().getFlyZoneManager().getEnabledCustomUnlockZone(new CommonCallbacks.CompletionCallbackWith<CustomUnlockZone>() {
+                    @Override
+                    public void onSuccess(CustomUnlockZone customUnlockZone) {
+                        if (customUnlockZone != null) {
+                            showToast("current enabled custom unlock zone is " + customUnlockZone.getName());
+                        } else {
+                            showToast("no enabled custom unlock zone right now");
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(DJIError error) {
+                        showToast("get enabled custom unlock zone failed: " + error.getDescription());
+                    }
+                });
                 break;
 
         }
@@ -424,20 +559,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     marker.remove();
                 }
                 if (checkGpsCoordinates(droneLocationLat, droneLocationLng)) {
-
                     LatLng pos = new LatLng(droneLocationLat, droneLocationLng);
-
-                    //Create MarkerOptions object
-                    if (pos != null) {
-
-                        //Create MarkerOptions object
-                        final MarkerOptions markerOptions = new MarkerOptions();
-                        markerOptions.position(pos);
-                        markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.aircraft));
-
-                        marker = mMap.addMarker(markerOptions);
-                    }
-
+                    marker = mMap.addMarker(markerOptions.position(pos));
                 }
             }
         });
@@ -463,12 +586,17 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         LatLng paloAlto = new LatLng(37.453671, -122.118101);
 
         mMap = googleMap;
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(paloAlto));
+        if (latLng != null) {
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+        } else {
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(paloAlto));
+        }
         mMap.animateCamera(CameraUpdateFactory.zoomTo(17.0f));
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             mMap.setMyLocationEnabled(true);
-            return;
         }
+        mMap.getUiSettings().setZoomControlsEnabled(true);
+        isMapReady = true;
 
         printSurroundFlyZones();
     }
@@ -491,30 +619,30 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     }
 
     private void showSurroundFlyZonesInTv(final List<FlyZoneInformation> flyZones) {
+        final StringBuffer sb = new StringBuffer();
+        for (FlyZoneInformation flyZone : flyZones) {
+            if (flyZone != null && flyZone.getCategory() != null){
+
+                sb.append("FlyZoneId: ").append(flyZone.getFlyZoneID()).append("\n");
+                sb.append("Category: ").append(flyZone.getCategory().name()).append("\n");
+                sb.append("Latitude: ").append(flyZone.getCoordinate().getLatitude()).append("\n");
+                sb.append("Longitude: ").append(flyZone.getCoordinate().getLongitude()).append("\n");
+                sb.append("FlyZoneType: ").append(flyZone.getFlyZoneType().name()).append("\n");
+                sb.append("Radius: ").append(flyZone.getRadius()).append("\n");
+                if (flyZone.getShape() != null) {
+                    sb.append("Shape: ").append(flyZone.getShape().name()).append("\n");
+                }
+                sb.append("StartTime: ").append(flyZone.getStartTime()).append("\n");
+                sb.append("EndTime: ").append(flyZone.getEndTime()).append("\n");
+                sb.append("UnlockStartTime: ").append(flyZone.getUnlockStartTime()).append("\n");
+                sb.append("UnlockEndTime: ").append(flyZone.getUnlockEndTime()).append("\n");
+                sb.append("Name: ").append(flyZone.getName()).append("\n");
+                sb.append("\n");
+            }
+        }
         MainActivity.this.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                StringBuffer sb = new StringBuffer();
-                for (FlyZoneInformation flyZone : flyZones) {
-                    if (flyZone != null && flyZone.getCategory() != null){
-
-                        sb.append("FlyZoneId: ").append(flyZone.getFlyZoneID()).append("\n");
-                        sb.append("Category: ").append(flyZone.getCategory().name()).append("\n");
-                        sb.append("Latitude: ").append(flyZone.getCoordinate().getLatitude()).append("\n");
-                        sb.append("Longitude: ").append(flyZone.getCoordinate().getLongitude()).append("\n");
-                        sb.append("FlyZoneType: ").append(flyZone.getFlyZoneType().name()).append("\n");
-                        sb.append("Radius: ").append(flyZone.getRadius()).append("\n");
-                        if(flyZone.getShape() != null){
-                            sb.append("Shape: ").append(flyZone.getShape().name()).append("\n");
-                        }
-                        sb.append("StartTime: ").append(flyZone.getStartTime()).append("\n");
-                        sb.append("EndTime: ").append(flyZone.getEndTime()).append("\n");
-                        sb.append("UnlockStartTime: ").append(flyZone.getUnlockStartTime()).append("\n");
-                        sb.append("UnlockEndTime: ").append(flyZone.getUnlockEndTime()).append("\n");
-                        sb.append("Name: ").append(flyZone.getName()).append("\n");
-                        sb.append("\n");
-                    }
-                }
                 flyZonesTv.setText(sb.toString());
             }
         });
@@ -529,26 +657,20 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             public void run() {
                 mMap.clear();
                 if (latLng != null) {
-
-                    //Create MarkerOptions object
-                    final MarkerOptions markerOptions = new MarkerOptions();
-                    markerOptions.position(latLng);
-                    markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.aircraft));
-
-                    marker = mMap.addMarker(markerOptions);
+                    marker = mMap.addMarker(markerOptions.position(latLng));
                 }
                 for (FlyZoneInformation flyZone : flyZones) {
 
                     //print polygon
-                    if(flyZone.getSubFlyZones() != null){
+                    if (flyZone.getSubFlyZones() != null) {
                         SubFlyZoneInformation[] polygonItems = flyZone.getSubFlyZones();
                         int itemSize = polygonItems.length;
-                        for(int i = 0; i != itemSize; ++i) {
+                        for (int i = 0; i != itemSize; ++i) {
                             if(polygonItems[i].getShape() == SubFlyZoneShape.POLYGON) {
                                 DJILog.d("updateFlyZonesOnTheMap", "sub polygon points " + i + " size: " + polygonItems[i].getVertices().size());
                                 DJILog.d("updateFlyZonesOnTheMap", "sub polygon points " + i + " category: " + flyZone.getCategory().value());
                                 DJILog.d("updateFlyZonesOnTheMap", "sub polygon points " + i + " limit height: " + polygonItems[i].getMaxFlightHeight());
-                                addPolygonMarker(polygonItems[i].getVertices(), flyZone.getCategory().value(), polygonItems[i].getMaxFlightHeight());
+                                addPolygonMarker(polygonItems[i].getVertices(), flyZone.getCategory(), polygonItems[i].getMaxFlightHeight());
                             }
                             else if (polygonItems[i].getShape() == SubFlyZoneShape.CYLINDER){
                                 LocationCoordinate2D tmpPos = polygonItems[i].getCenter();
@@ -613,13 +735,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
     }
 
-
-    /**
-     * 新版多边形限飞区使用
-     * @param area_level
-     */
-    private void addPolygonMarker(List<LocationCoordinate2D> polygonPoints, int area_level, int height) {
-        if(polygonPoints == null) {
+    private void addPolygonMarker(List<LocationCoordinate2D> polygonPoints, FlyZoneCategory flyZoneCategory, int height) {
+        if (polygonPoints == null) {
             return;
         }
 
@@ -628,19 +745,130 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         for (LocationCoordinate2D point : polygonPoints) {
             points.add(new LatLng(point.getLatitude(), point.getLongitude()));
         }
-        int fillColor = limitFillColor;
-        if(painter.getmHeightToColor().get(height) != null) {
-            fillColor = painter.getmHeightToColor().get(height);
-        }
-        else if(area_level == FlyForbidProtocol.LevelType.CAN_UNLIMIT.value()) {
-            fillColor = limitCanUnlimitFillColor;
-        } else if(area_level == FlyForbidProtocol.LevelType.STRONG_WARNING.value() || area_level == FlyForbidProtocol.LevelType.WARNING.value()) {
+        int fillColor = getResources().getColor(R.color.limit_fill);
+        if (painter.getHeightToColor().get(height) != null) {
+            fillColor = painter.getHeightToColor().get(height);
+        } else if (flyZoneCategory == FlyZoneCategory.AUTHORIZATION) {
+            fillColor = getResources().getColor(R.color.auth_fill);
+        } else if (flyZoneCategory == FlyZoneCategory.ENHANCED_WARNING || flyZoneCategory == FlyZoneCategory.WARNING) {
             fillColor = getResources().getColor(R.color.gs_home_fill);
         }
         Polygon plg = mMap.addPolygon(new PolygonOptions().addAll(points)
-                .strokeColor(painter.getmColorTransparent())
+                .strokeColor(painter.getColorTransparent())
                 .fillColor(fillColor));
 
+    }
+
+    private void unlockNFZs() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        final EditText input = new EditText(this);
+        input.setHint("Enter Fly Zone ID");
+        input.setInputType(EditorInfo.TYPE_CLASS_NUMBER);
+        builder.setView(input);
+        builder.setTitle("Unlock Fly Zones");
+        builder.setItems(new CharSequence[] {"Continue", "Unlock", "Cancel"},
+                         new DialogInterface.OnClickListener() {
+                             public void onClick(DialogInterface dialog, int which) {
+                                 // The 'which' argument contains the index position
+                                 // of the selected item
+                                 switch (which) {
+                                     case 0:
+                                         if (TextUtils.isEmpty(input.getText())) {
+                                             dialog.dismiss();
+                                         } else {
+                                             String value1 = input.getText().toString();
+                                             flyZoneIdsToUnlock.add(Integer.parseInt(value1));
+                                         }
+                                         break;
+                                     case 1:
+                                         if (TextUtils.isEmpty(input.getText())) {
+                                             dialog.dismiss();
+                                         } else {
+                                             String value2 = input.getText().toString();
+                                             flyZoneIdsToUnlock.add(Integer.parseInt(value2));
+                                             DJISDKManager.getInstance().getFlyZoneManager().unlockFlyZones(
+                                                 flyZoneIdsToUnlock, new CommonCallbacks.CompletionCallback() {
+                                                     @Override
+                                                     public void onResult(DJIError error) {
+
+                                                         flyZoneIdsToUnlock.clear();
+                                                         if (error == null) {
+                                                             showToast("unlock NFZ Success!");
+                                                         } else {
+                                                             showToast(error.getDescription());
+                                                         }
+                                                     }
+                                                 });
+                                         }
+                                         break;
+                                     case 2:
+                                         dialog.dismiss();
+                                         break;
+                                 }
+                             }
+                         });
+
+        builder.show();
+    }
+
+    private StringBuffer printCustomUnlockZone(List<CustomUnlockZone> customUnlockZones) {
+        final StringBuffer sb = new StringBuffer();
+        sb.append("== Custom Unlock Zone ==");
+        if (customUnlockZones != null) {
+            for (final CustomUnlockZone area : customUnlockZones) {
+                sb.append("license id: " + area.getID());
+                sb.append("\n");
+                sb.append("license name: " + area.getName());
+                sb.append("\n");
+                sb.append("isEnabled: " + area.isEnabled());
+                sb.append("\n");
+                sb.append("isExpired: " + area.isExpired());
+                sb.append("\n");
+                sb.append("latitude: " + area.getCenter().getLatitude());
+                sb.append("\n");
+                sb.append("longitude: " + area.getCenter().getLongitude());
+                sb.append("\n");
+                sb.append("radius: " + area.getRadius());
+                sb.append("\n");
+                sb.append("start time: " + area.getStartTime());
+                sb.append("\n");
+                sb.append("end time: " + area.getEndTime());
+                sb.append("\n");
+            }
+
+        }
+
+        return sb;
+    }
+
+    private StringBuffer printFlyZoneInformation(List<FlyZoneInformation> flyZoneInformations) {
+        StringBuffer sb = new StringBuffer();
+        sb.append("\n");
+        sb.append("== Fly Zone Information ==");
+        if (flyZoneInformations != null){
+            for (FlyZoneInformation flyZone : flyZoneInformations) {
+                if (flyZone != null) {
+                    sb.append("FlyZoneId: ").append(flyZone.getFlyZoneID()).append("\n");
+                    sb.append("Category: ").append(flyZone.getCategory().name()).append("\n");
+                    sb.append("Latitude: ").append(flyZone.getCoordinate().getLatitude()).append("\n");
+                    sb.append("Longitude: ").append(flyZone.getCoordinate().getLongitude()).append("\n");
+                    sb.append("FlyZoneReason: ").append(flyZone.getReason().name()).append("\n");
+                    sb.append("FlyZoneType: ").append(flyZone.getFlyZoneType().name()).append("\n");
+                    sb.append("Radius: ").append(flyZone.getRadius()).append("\n");
+                    if (flyZone.getShape() != null) {
+                        sb.append("Shape: ").append(flyZone.getShape().name()).append("\n");
+                    }
+                    sb.append("StartTime: ").append(flyZone.getStartTime()).append("\n");
+                    sb.append("EndTime: ").append(flyZone.getEndTime()).append("\n");
+                    sb.append("UnlockStartTime: ").append(flyZone.getUnlockStartTime()).append("\n");
+                    sb.append("UnlockEndTime: ").append(flyZone.getUnlockEndTime()).append("\n");
+                    sb.append("Name: ").append(flyZone.getName()).append("\n");
+                    sb.append("\n");
+                }
+            }
+        }
+
+        return sb;
     }
 
 }

@@ -1,6 +1,7 @@
 package com.dji.geodemo;
 
 import android.graphics.Color;
+import android.support.annotation.ColorInt;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -9,20 +10,20 @@ import java.util.Map;
  */
 public class FlyfrbBasePainter {
 
-    protected Map<Integer, Integer> mHeightToColor = new HashMap<>();
+    private Map<Integer, Integer> heightToColor = new HashMap<>();
 
-    protected final int mColorTransparent = Color.argb(0, 0, 0, 0);
+    private @ColorInt int colorTransparent = Color.argb(0, 0, 0, 0);
 
     public FlyfrbBasePainter() {
-        mHeightToColor.put(65, Color.argb(50, 0, 0, 0));
-        mHeightToColor.put(125, Color.argb(25, 0, 0, 0));
+        heightToColor.put(65, Color.argb(50, 0, 0, 0));
+        heightToColor.put(125, Color.argb(25, 0, 0, 0));
     }
 
-    public Map<Integer, Integer> getmHeightToColor() {
-        return mHeightToColor;
+    public Map<Integer, Integer> getHeightToColor() {
+        return heightToColor;
     }
 
-    public int getmColorTransparent() {
-        return mColorTransparent;
+    public @ColorInt int getColorTransparent() {
+        return colorTransparent;
     }
 }

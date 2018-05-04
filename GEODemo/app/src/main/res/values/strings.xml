@@ -8,7 +8,7 @@
     <string name="disconnected">Disconnected</string>
     <string name="product_information">Product Information</string>
     <string name="connection_loose">Status: No Product Connected</string>
-    <string name="sdk_version">DJI SDK Version: 4.4.1</string>
+    <string name="sdk_version">DJI SDK Version: %1$s</string>
 
     <!-- GEO with map testing activity-->
     <string name="title_activity_geo_with_map_testing">GeoWithMapTestingActivity</string>
@@ -26,6 +26,9 @@
     <string name="geo_refresh_nfz">Refresh Local Data</string>
     <string name="geo_unlock_nfzs">Unlock NFZs</string>
     <string name="geo_get_unlock_nfzs">Get Unlock NFZs</string>
+    <string name="geo_reload_unlocked_zone_groups_from_server">Reload Unlocked Zone Groups from Server</string>
+    <string name="geo_sync_unlocked_zone_group_to_aircraft">Sync Unlocked Zone Group to Aircraft</string>
+    <string name="geo_get_loaded_unlocked_zone_groups">Get Loaded Unlocked Zone Groups</string>
     <string name="geo_login">Login</string>
     <string name="geo_logout">Logout</string>
     <string name="enabled_geo">Enabled GEO</string>
@@ -33,6 +36,12 @@
     <string name="stop_simulator">Stop Simulator</string>
     <string name="geo_set_geo_enabled">Set GEO Enabled</string>
     <string name="geo_get_geo_enabled">Get GEO Enabled</string>
+    <string name="flysafe_clear_text">Clear Text</string>
     <string name="geo_update_location">Update Location</string>
+    <string name="geo_load_custom_unlock_zones">Load Custom Unlock Zones from server</string>
+    <string name="geo_get_custom_unlock_zones">Get Custom Unlock Zones</string>
+    <string name="geo_enable_custom_unlock_zone">Enable Custom Unlock Zone</string>
+    <string name="geo_disable_custom_unlock_zone">Disable Custom Unlock Zone</string>
+    <string name="geo_get_enabled_custom_unlock_zone">Get Enabled Custom Unlock Zone</string>
 
 </resources>
