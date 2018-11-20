@@ -62,8 +62,8 @@ dependencies {
     compile 'org.bouncycastle:bcprov-jdk15on:1.57'
     compile 'org.bouncycastle:bcpkix-jdk15on:1.57'
 
-    compile ('com.dji:dji-sdk:4.8')
-    provided ('com.dji:dji-sdk-provided:4.8')
+    compile ('com.dji:dji-sdk:4.8.1')
+    provided ('com.dji:dji-sdk-provided:4.8.1')
     compile 'com.squareup.okio:okio:1.11.0'
     compile 'org.reactivestreams:reactive-streams:1.0.0'
     compile 'org.greenrobot:eventbus:3.1.1'
