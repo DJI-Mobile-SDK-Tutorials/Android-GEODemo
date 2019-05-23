@@ -8,13 +8,13 @@ In this tutorial, you will learn how to use the "DJIFlyZoneManager" and "DJIFlyZ
 
  - Android Studio 1.5+
  - Android System 4.1+
- - DJI Android SDK 4.9
+ - DJI Android SDK 4.10
 
 ## Tutorial
 
 For this demo's tutorial: **DJI GEO System Tutorial**, please refer to <https://developer.dji.com/mobile-sdk/documentation/android-tutorials/GEODemo.html>.
 
-> Note: The demo's tutorial will be updated to Android SDK 4.9 soon.
+> Note: The demo's tutorial will be updated to Android SDK 4.10 soon.
 
 ## Feedback
 
