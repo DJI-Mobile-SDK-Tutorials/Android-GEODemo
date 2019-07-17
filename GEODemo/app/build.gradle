@@ -1,4 +1,6 @@
 apply plugin: 'com.android.application'
+// Please comment the following one lines of code if you use your own packagingOptions Configurations.
+apply from : "https://raw.githubusercontent.com/DJI-Mobile-SDK-Tutorials/Android-CommonConfig/master/config_sample_all.gradle"
 
 android {
     compileSdkVersion 26
@@ -25,17 +27,18 @@ android {
         }
     }
 
-    packagingOptions{
-        doNotStrip "*/*/libdjivideo.so"
-        doNotStrip "*/*/libSDKRelativeJNI.so"
-        doNotStrip "*/*/libFlyForbid.so"
-        doNotStrip "*/*/libduml_vision_bokeh.so"
-        doNotStrip "*/*/libyuv2.so"
-        doNotStrip "*/*/libGroudStation.so"
-        doNotStrip "*/*/libFREncrypt.so"
-        doNotStrip "*/*/libUpgradeVerify.so"
-        exclude 'META-INF/rxjava.properties'
-    }
+// Please uncomment the following code if you use your own packagingOptions Configurations.
+//    packagingOptions{
+//        doNotStrip "*/*/libdjivideo.so"
+//        doNotStrip "*/*/libSDKRelativeJNI.so"
+//        doNotStrip "*/*/libFlyForbid.so"
+//        doNotStrip "*/*/libduml_vision_bokeh.so"
+//        doNotStrip "*/*/libyuv2.so"
+//        doNotStrip "*/*/libGroudStation.so"
+//        doNotStrip "*/*/libFREncrypt.so"
+//        doNotStrip "*/*/libUpgradeVerify.so"
+//        exclude 'META-INF/rxjava.properties'
+//    }
 
     //Mention in the doc
     dexOptions {
@@ -62,8 +65,9 @@ dependencies {
     compile 'org.bouncycastle:bcprov-jdk15on:1.57'
     compile 'org.bouncycastle:bcpkix-jdk15on:1.57'
 
-    compile ('com.dji:dji-sdk:4.10')
-    provided ('com.dji:dji-sdk-provided:4.10')
+// Please uncomment the following code if you use your own sdk version.
+//    compile ('com.dji:dji-sdk:4.10')
+//    provided ('com.dji:dji-sdk-provided:4.10')
     compile 'com.squareup.okio:okio:1.11.0'
     compile 'org.reactivestreams:reactive-streams:1.0.0'
     compile 'org.greenrobot:eventbus:3.1.1'
