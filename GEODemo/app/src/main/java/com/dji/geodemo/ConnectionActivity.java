@@ -6,12 +6,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
-import android.support.v4.app.ActivityCompat;
+import androidx.core.app.ActivityCompat;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 
 import dji.sdk.base.BaseProduct;
 import dji.sdk.products.Aircraft;
@@ -116,14 +120,27 @@ public class ConnectionActivity extends Activity implements View.OnClickListener
         }
     }
 
+    public void showToast(final String msg) {
+        ConnectionActivity.this.runOnUiThread(new Runnable() {
+            public void run() {
+                Toast.makeText(ConnectionActivity.this, msg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
 
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
 
             case R.id.btn_open: {
-                Intent intent = new Intent(this, MainActivity.class);
-                startActivity(intent);
+                int status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(getApplicationContext());
+                if(status != ConnectionResult.SUCCESS) {
+                    GooglePlayServicesUtil.getErrorDialog(status, this, status);
+                    showToast("Cannot run without Google Play, please check！");
+                } else {
+                    Intent intent = new Intent(this, MainActivity.class);
+                    startActivity(intent);
+                }
                 break;
             }
             default:

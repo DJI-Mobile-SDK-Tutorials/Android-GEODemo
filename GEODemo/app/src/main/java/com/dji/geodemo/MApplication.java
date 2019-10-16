@@ -3,7 +3,8 @@ package com.dji.geodemo;
 import android.app.Application;
 import android.content.Context;
 import android.content.res.Configuration;
-import android.support.multidex.MultiDex;
+
+import androidx.multidex.MultiDex;
 
 import com.secneo.sdk.Helper;
 
